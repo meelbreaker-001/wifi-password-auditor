@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wi-Fi Password Security Auditor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Inter:wght@400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ── TOKENS ─────────────────────────────────────────── */
+    :root {
+      --bg:        #0b0f14;
+      --surface:   #111720;
+      --border:    #1e2a38;
+      --accent:    #00e5ff;
+      --accent2:   #7b61ff;
+      --danger:    #ff4d6d;
+      --text:      #e2eaf4;
+      --muted:     #6b7f96;
+      --mono:      'Share Tech Mono', monospace;
+      --display:   'Syne', sans-serif;
+      --body:      'Inter', sans-serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--body);
+      font-size: 1rem;
+      line-height: 1.7;
+      overflow-x: hidden;
+    }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ── SCAN-LINE BACKGROUND (signature element) ────────── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        to bottom,
+        transparent 0px,
+        transparent 3px,
+        rgba(0,229,255,0.02) 3px,
+        rgba(0,229,255,0.02) 4px
+      );
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── NAV ─────────────────────────────────────────────── */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 2rem;
+      background: rgba(11,15,20,0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .nav-logo {
+      font-family: var(--mono);
+      font-size: 0.9rem;
+      color: var(--accent);
+      letter-spacing: 0.08em;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 2rem;
+      list-style: none;
+    }
+
+    .nav-links a {
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover { color: var(--accent); text-decoration: none; }
+
+    /* ── HERO ─────────────────────────────────────────────── */
+    .hero {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 6rem 1.5rem 4rem;
+      overflow: hidden;
+    }
+
+    /* animated signal rings */
+    .hero-rings {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 600px; height: 600px;
+      pointer-events: none;
+    }
+
+    .ring {
+      position: absolute;
+      top: 50%; left: 50%;
+      border-radius: 50%;
+      border: 1px solid rgba(0,229,255,0.12);
+      transform: translate(-50%, -50%) scale(0);
+      animation: pulse 4s ease-out infinite;
+    }
+
+    .ring:nth-child(1) { width: 200px; height: 200px; animation-delay: 0s; }
+    .ring:nth-child(2) { width: 350px; height: 350px; animation-delay: 1s; }
+    .ring:nth-child(3) { width: 500px; height: 500px; animation-delay: 2s; }
+
+    @keyframes pulse {
+      0%  { transform: translate(-50%,-50%) scale(0); opacity: 1; }
+      100%{ transform: translate(-50%,-50%) scale(1); opacity: 0; }
+    }
+
+    .hero-badge {
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      letter-spacing: 0.15em;
+      color: var(--accent);
+      background: rgba(0,229,255,0.08);
+      border: 1px solid rgba(0,229,255,0.25);
+      border-radius: 2px;
+      padding: 0.35rem 0.9rem;
+      margin-bottom: 1.5rem;
+      display: inline-block;
+    }
+
+    .hero h1 {
+      font-family: var(--display);
+      font-size: clamp(2.2rem, 6vw, 4.5rem);
+      font-weight: 800;
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+      max-width: 800px;
+      margin-bottom: 1.25rem;
+    }
+
+    .hero h1 span {
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero p {
+      font-size: 1.1rem;
+      color: var(--muted);
+      max-width: 560px;
+      margin-bottom: 2.5rem;
+    }
+
+    .hero-ctas {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.6rem;
+      border-radius: 4px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      letter-spacing: 0.02em;
+      border: none;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #000;
+    }
+
+    .btn-primary:hover {
+      background: #33ecff;
+      text-decoration: none;
+      transform: translateY(-1px);
+      box-shadow: 0 8px 24px rgba(0,229,255,0.3);
+    }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .btn-outline:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    /* ── DISCLAIMER BANNER ───────────────────────────────── */
+    .disclaimer {
+      position: relative;
+      z-index: 1;
+      background: rgba(255,77,109,0.07);
+      border-top: 1px solid rgba(255,77,109,0.3);
+      border-bottom: 1px solid rgba(255,77,109,0.3);
+      padding: 0.9rem 2rem;
+      text-align: center;
+      font-size: 0.85rem;
+      color: #ff8099;
+    }
+
+    .disclaimer strong { color: var(--danger); }
+
+    /* ── SECTIONS ────────────────────────────────────────── */
+    section {
+      position: relative;
+      z-index: 1;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 5rem 1.5rem;
+    }
+
+    .section-label {
+      font-family: var(--mono);
+      font-size: 0.7rem;
+      letter-spacing: 0.2em;
+      color: var(--accent);
+      text-transform: uppercase;
+      margin-bottom: 0.75rem;
+    }
+
+    h2 {
+      font-family: var(--display);
+      font-size: clamp(1.6rem, 3vw, 2.4rem);
+      font-weight: 800;
+      margin-bottom: 1rem;
+      letter-spacing: -0.02em;
+    }
+
+    /* ── FEATURES GRID ───────────────────────────────────── */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.25rem;
+      margin-top: 2.5rem;
+    }
+
+    .feature-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.75rem;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+
+    .feature-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-3px);
+    }
+
+    .feature-icon {
+      font-size: 1.6rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .feature-card h3 {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      color: var(--text);
+    }
+
+    .feature-card p {
+      font-size: 0.875rem;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    /* ── TERMINAL DEMO ───────────────────────────────────── */
+    .terminal-wrap {
+      margin-top: 2.5rem;
+      background: #07090d;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .terminal-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1rem;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .dot { width: 12px; height: 12px; border-radius: 50%; }
+    .dot.r { background: #ff5f57; }
+    .dot.y { background: #ffbd2e; }
+    .dot.g { background: #28c840; }
+
+    .terminal-title {
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-left: 0.5rem;
+    }
+
+    .terminal-body {
+      padding: 1.5rem;
+      font-family: var(--mono);
+      font-size: 0.85rem;
+      line-height: 1.9;
+      overflow-x: auto;
+    }
+
+    .t-prompt { color: var(--accent2); }
+    .t-cmd    { color: var(--text); }
+    .t-out    { color: var(--muted); }
+    .t-good   { color: #4ade80; }
+    .t-warn   { color: #facc15; }
+    .t-bad    { color: var(--danger); }
+    .t-accent { color: var(--accent); }
+
+    /* ── STRUCTURE ───────────────────────────────────────── */
+    .file-tree {
+      margin-top: 2rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.5rem 2rem;
+      font-family: var(--mono);
+      font-size: 0.82rem;
+      line-height: 2;
+      overflow-x: auto;
+    }
+
+    .tree-dir  { color: var(--accent); }
+    .tree-file { color: var(--text); }
+    .tree-note { color: var(--muted); font-size: 0.75rem; }
+
+    /* ── INSTALL STEPS ───────────────────────────────────── */
+    .steps {
+      margin-top: 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    .step {
+      display: flex;
+      gap: 1.25rem;
+      align-items: flex-start;
+    }
+
+    .step-num {
+      flex-shrink: 0;
+      width: 2rem; height: 2rem;
+      border-radius: 50%;
+      background: rgba(0,229,255,0.1);
+      border: 1px solid rgba(0,229,255,0.3);
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      color: var(--accent);
+    }
+
+    .step-content h4 { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.3rem; }
+    .step-content p  { font-size: 0.85rem; color: var(--muted); }
+
+    code {
+      font-family: var(--mono);
+      font-size: 0.85em;
+      background: rgba(0,229,255,0.07);
+      border: 1px solid var(--border);
+      padding: 0.1em 0.4em;
+      border-radius: 3px;
+      color: var(--accent);
+    }
+
+    .code-block {
+      background: #07090d;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1rem 1.25rem;
+      font-family: var(--mono);
+      font-size: 0.82rem;
+      line-height: 1.8;
+      color: var(--text);
+      overflow-x: auto;
+      margin-top: 0.5rem;
+    }
+
+    .code-block .cm { color: var(--muted); }
+    .code-block .kw { color: var(--accent2); }
+    .code-block .fn { color: var(--accent); }
+    .code-block .st { color: #4ade80; }
+
+    /* ── TECH STACK PILLS ────────────────────────────────── */
+    .tech-stack {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      margin-top: 1.5rem;
+    }
+
+    .tech-pill {
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      padding: 0.35rem 0.8rem;
+      border-radius: 3px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+
+    /* ── FOOTER ──────────────────────────────────────────── */
+    footer {
+      position: relative;
+      z-index: 1;
+      border-top: 1px solid var(--border);
+      padding: 2rem;
+      text-align: center;
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+
+    footer a { color: var(--muted); }
+    footer a:hover { color: var(--accent); }
+
+    /* ── DIVIDER ─────────────────────────────────────────── */
+    .divider {
+      height: 1px;
+      background: var(--border);
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    /* ── RESPONSIVE ──────────────────────────────────────── */
+    @media (max-width: 600px) {
+      nav { padding: 0.9rem 1rem; }
+      .nav-links { display: none; }
+      .hero { padding: 5rem 1rem 3rem; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .ring { animation: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav>
+    <div class="nav-logo">// wi-fi-auditor</div>
+    <ul class="nav-links">
+      <li><a href="#features">Features</a></li>
+      <li><a href="#demo">Demo</a></li>
+      <li><a href="#structure">Structure</a></li>
+      <li><a href="#install">Install</a></li>
+      <li><a href="https://github.com/yourusername/wifi-password-auditor" target="_blank">GitHub ↗</a></li>
+    </ul>
+  </nav>
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-rings">
+      <div class="ring"></div>
+      <div class="ring"></div>
+      <div class="ring"></div>
+    </div>
+
+    <div class="hero-badge">INTERNSHIP PROJECT · CYBERSECURITY</div>
+    <h1>Wi-Fi Password<br><span>Security Auditor</span></h1>
+    <p>
+      Evaluate WPA/WPA2 password strength, analyze authorized handshake
+      captures, and generate detailed PDF security reports — all from the command line.
+    </p>
+    <div class="hero-ctas">
+      <a href="https://github.com/yourusername/wifi-password-auditor" class="btn btn-primary" target="_blank">
+        ⬡ View on GitHub
+      </a>
+      <a href="#install" class="btn btn-outline">
+        Quick Start ↓
+      </a>
+    </div>
+  </div>
+
+  <!-- DISCLAIMER -->
+  <div class="disclaimer">
+    <strong>⚠ Legal Notice:</strong>
+    This tool is for <strong>educational use and authorized testing only</strong>.
+    Never run handshake capture or cracking on networks you don't own or lack explicit written permission to test.
+  </div>
+
+  <!-- FEATURES -->
+  <section id="features">
+    <div class="section-label">// what it does</div>
+    <h2>Core Capabilities</h2>
+
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">🔍</div>
+        <h3>Password Strength Checker</h3>
+        <p>
+          Pure-Python entropy analysis — no network access required.
+          Checks length, character variety, common-password databases,
+          and estimates offline crack time.
+        </p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📡</div>
+        <h3>Handshake Analyzer</h3>
+        <p>
+          Wraps <code>aircrack-ng</code> and <code>hashcat</code> to run
+          dictionary attacks against WPA/WPA2 handshake captures on
+          authorized networks.
+        </p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📄</div>
+        <h3>PDF Report Generator</h3>
+        <p>
+          Automatically produces a formatted PDF audit report with entropy
+          metrics, strength ratings, and actionable recommendations using
+          <code>reportlab</code>.
+        </p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🧪</div>
+        <h3>Unit Tested</h3>
+        <p>
+          Full test suite in <code>tests/</code> covering entropy math,
+          strength classification, and edge cases. CI runs automatically
+          on every GitHub push via GitHub Actions.
+        </p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">⚙️</div>
+        <h3>YAML Configuration</h3>
+        <p>
+          Customize wordlist paths, report output directories, entropy
+          thresholds, and tool locations in a single
+          <code>config/settings.yaml</code> file.
+        </p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🛡️</div>
+        <h3>Authorization Gate</h3>
+        <p>
+          All handshake-related operations require explicit in-terminal
+          authorization confirmation before proceeding — keeping
+          ethical use front and center.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- DEMO -->
+  <section id="demo">
+    <div class="section-label">// terminal output</div>
+    <h2>See It in Action</h2>
+
+    <div class="terminal-wrap">
+      <div class="terminal-bar">
+        <div class="dot r"></div>
+        <div class="dot y"></div>
+        <div class="dot g"></div>
+        <span class="terminal-title">bash — wifi-password-auditor</span>
+      </div>
+      <div class="terminal-body">
+        <div><span class="t-prompt">user@kali</span><span class="t-cmd">:~/wifi-password-auditor$ </span><span class="t-accent">python -m src.wifi_auditor.main --check-strength "Tr0ub4dor&3xyz!" --report</span></div>
+        <br>
+        <div class="t-out">==================================================</div>
+        <div class="t-accent">PASSWORD STRENGTH REPORT</div>
+        <div class="t-out">==================================================</div>
+        <div class="t-out">Length             : <span class="t-good">15</span></div>
+        <div class="t-out">Entropy (bits)     : <span class="t-good">98.32</span></div>
+        <div class="t-out">Has lowercase      : <span class="t-good">True</span></div>
+        <div class="t-out">Has uppercase      : <span class="t-good">True</span></div>
+        <div class="t-out">Has digits         : <span class="t-good">True</span></div>
+        <div class="t-out">Has special chars  : <span class="t-good">True</span></div>
+        <div class="t-out">Common password    : <span class="t-good">False</span></div>
+        <div class="t-out">Rating             : <span class="t-good">Very Strong</span></div>
+        <div class="t-out">Est. crack time    : <span class="t-good">~125,447,660,578.3 centuries</span></div>
+        <br>
+        <div class="t-out">Recommendations:</div>
+        <div class="t-good">  - Strong password. No changes needed.</div>
+        <div class="t-out">==================================================</div>
+        <br>
+        <div class="t-out">PDF report saved to: <span class="t-accent">reports/wifi_password_audit_20260615.pdf</span></div>
+        <br>
+        <div><span class="t-prompt">user@kali</span><span class="t-cmd">:~/wifi-password-auditor$ </span><span class="t-accent">python -m src.wifi_auditor.main --check-strength "password"</span></div>
+        <br>
+        <div class="t-out">Rating             : <span class="t-bad">Very Weak</span></div>
+        <div class="t-out">Est. crack time    : <span class="t-bad">~3.5 minutes</span></div>
+        <div class="t-out">Common password    : <span class="t-bad">True</span></div>
+        <br>
+        <div class="t-warn">  - This is a commonly used password. Choose something unique.</div>
+        <div class="t-warn">  - Use at least 12 characters for Wi-Fi passwords.</div>
+        <div class="t-warn">  - Add uppercase letters, digits, and special characters.</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- STRUCTURE -->
+  <section id="structure">
+    <div class="section-label">// project layout</div>
+    <h2>File Structure</h2>
+
+    <div class="file-tree">
+<span class="tree-dir">wifi-password-auditor/</span><br>
+├── <span class="tree-file">README.md</span>         <span class="tree-note">← project overview + legal disclaimer</span><br>
+├── <span class="tree-file">LICENSE</span>           <span class="tree-note">← MIT</span><br>
+├── <span class="tree-file">requirements.txt</span>  <span class="tree-note">← PyYAML, reportlab, tqdm</span><br>
+├── <span class="tree-file">.gitignore</span>        <span class="tree-note">← excludes *.cap, wordlists, reports</span><br>
+├── <span class="tree-file">setup.py</span>          <span class="tree-note">← pip-installable package</span><br>
+├── <span class="tree-dir">config/</span><br>
+│   ├── <span class="tree-file">settings.yaml</span> <span class="tree-note">← tool paths, thresholds</span><br>
+│   └── <span class="tree-file">common_passwords.txt</span><br>
+├── <span class="tree-dir">src/wifi_auditor/</span><br>
+│   ├── <span class="tree-file">main.py</span>           <span class="tree-note">← CLI entry point (argparse)</span><br>
+│   ├── <span class="tree-file">strength_checker.py</span> <span class="tree-note">← entropy + strength analysis</span><br>
+│   ├── <span class="tree-file">cracker.py</span>        <span class="tree-note">← aircrack-ng / hashcat wrapper</span><br>
+│   ├── <span class="tree-file">capture.py</span>        <span class="tree-note">← airmon-ng / airodump-ng wrapper</span><br>
+│   ├── <span class="tree-file">report.py</span>         <span class="tree-note">← PDF report generator</span><br>
+│   └── <span class="tree-file">utils.py</span>          <span class="tree-note">← config loader, helpers</span><br>
+├── <span class="tree-dir">tests/</span><br>
+│   ├── <span class="tree-file">test_strength_checker.py</span><br>
+│   ├── <span class="tree-file">test_cracker.py</span><br>
+│   └── <span class="tree-file">test_utils.py</span><br>
+├── <span class="tree-dir">wordlists/</span>        <span class="tree-note">← add rockyou.txt here (gitignored)</span><br>
+├── <span class="tree-dir">reports/</span>           <span class="tree-note">← generated PDFs land here</span><br>
+├── <span class="tree-dir">docs/</span><br>
+│   └── <span class="tree-file">usage.md</span><br>
+└── <span class="tree-dir">.github/workflows/</span><br>
+    └── <span class="tree-file">ci.yml</span>            <span class="tree-note">← auto-runs pytest on push</span><br>
+    </div>
+
+    <div style="margin-top:2rem">
+      <div class="section-label" style="margin-top:1.5rem">// tech stack</div>
+      <div class="tech-stack">
+        <span class="tech-pill">Python 3.9+</span>
+        <span class="tech-pill">aircrack-ng</span>
+        <span class="tech-pill">hashcat</span>
+        <span class="tech-pill">PyYAML</span>
+        <span class="tech-pill">reportlab</span>
+        <span class="tech-pill">tqdm</span>
+        <span class="tech-pill">pytest</span>
+        <span class="tech-pill">GitHub Actions CI</span>
+        <span class="tech-pill">Kali Linux</span>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- INSTALL -->
+  <section id="install">
+    <div class="section-label">// quick start</div>
+    <h2>Installation & Usage</h2>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <h4>Clone the repository</h4>
+          <div class="code-block"><span class="kw">git</span> <span class="fn">clone</span> <span class="st">https://github.com/yourusername/wifi-password-auditor.git</span><br>
+<span class="kw">cd</span> wifi-password-auditor</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <h4>Set up virtual environment &amp; install dependencies</h4>
+          <div class="code-block"><span class="kw">python3</span> -m venv venv<br>
+<span class="kw">source</span> venv/bin/activate<br>
+<span class="kw">pip</span> install -r requirements.txt</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <h4>Check password strength (safe, works anywhere)</h4>
+          <div class="code-block"><span class="kw">python</span> -m src.wifi_auditor.main --check-strength <span class="st">"YourP@ssword!"</span></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <h4>Generate a PDF report</h4>
+          <div class="code-block"><span class="kw">python</span> -m src.wifi_auditor.main --check-strength <span class="st">"YourP@ssword!"</span> --report</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-content">
+          <h4>Analyze a handshake (authorized networks only)</h4>
+          <div class="code-block"><span class="kw">python</span> -m src.wifi_auditor.main \<br>
+  --analyze-handshake capture.cap \<br>
+  --wordlist wordlists/rockyou.txt \<br>
+  --bssid <span class="st">AA:BB:CC:DD:EE:FF</span></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">6</div>
+        <div class="step-content">
+          <h4>Run unit tests</h4>
+          <div class="code-block"><span class="kw">pip</span> install pytest<br>
+<span class="kw">pytest</span> tests/ -v</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <p>
+      Built as an internship project · MIT License ·
+      <a href="https://github.com/yourusername/wifi-password-auditor" target="_blank">GitHub</a>
+    </p>
+    <p style="margin-top:0.4rem; font-size:0.75rem;">
+      For educational use only. Test responsibly on networks you own.
+    </p>
+  </footer>
+
+</body>
+</html>
